@@ -36,3 +36,16 @@ through to all my future research projects.
 ## development-log
 01/06/24 - repo setup, README - added `purpose`, `technologies-used`, `installation`, `authors/credits`, `references`, 
 and `development-log` sections
+
+BibTex Citation:
+'''
+@InProceedings{SciPyProceedings_11,
+  author =       {Aric A. Hagberg and Daniel A. Schult and Pieter J. Swart},
+  title =        {Exploring Network Structure, Dynamics, and Function using NetworkX},
+  booktitle =   {Proceedings of the 7th Python in Science Conference},
+  pages =     {11 - 15},
+  address = {Pasadena, CA USA},
+  year =      {2008},
+  editor =    {Ga\"el Varoquaux and Travis Vaught and Jarrod Millman},
+}
+'''
