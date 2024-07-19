@@ -1,56 +1,81 @@
-'''
-Provides functionality to load, read, and generate tournaments from .di6 files
-'''
+"""
+Functions that will generate digraphs from .txt, and .d6 files.
 
-# LIBRARY IMPORTS
-import networkx as nx       # networkx module
-import math as m            # math module
-import os
-import linecache
+For a broad overview, please refer to 'projectFiles/DOCUMENTATION.md';
+for more detailed information, please read through docstrings, and comments below.
+"""
+
+# library imports
+import networkx as nx
+import math as m
+import os                   # for file path identification
+import linecache            # for loading ranges of lines into memory cache (optimization)
 
 
-def mackay_t_parser(filename: str | os.PathLike, fileline: int) -> nx.DiGraph:
+def mckay_txt_parser(filename: str | os.PathLike, fileline: int) -> nx.DiGraph:
     """
-    will generate a tournament from a specific line from a given filename
-    :param filename: name of the file being passed in, needs to be .txt format
-    :param fileline: specific line we want to use in file; please use non-zero indexed value
-    :return: a tournament digraph
+    will generate a tournament from a specific line from a given file of type .txt
+    :param filename: name of the file being passed in, required to be .txt format
+    :param fileline: specific line we want to use in file; please use non-zero indexed value (i.e. first line is line 1)
+    :return: a tournament digraph of type networkX.DiGraph
     """
-    T = nx.DiGraph()
+    digraph_result = nx.DiGraph()
+
+    if not filename.endswith('.txt'):
+        raise FileTypeError(filename)
 
     try:
         with open(filename, 'r') as file:
-            # using linecache instead of regular .getline, line count gets crazy at 10 vertex tournaments
-            spec_line= linecache.getline(filename, fileline, module_globals=None)
-            spec_line = spec_line.strip()   # remove possible whitespace at beginning and end of string
+            spec_line = linecache.getline(filename, fileline, module_globals=None)  # memory optimization (larger files)
+            spec_line = spec_line.strip()  # clean up input
 
             if spec_line == "":
                 raise SpecLineError(fileline)
 
-            for char in spec_line:
-                if char not in ('0','1'):                       # file should ONLY be composed of zeroes and ones
+            for char in spec_line:  # checks for unexpected data in line content (we only want 1's and 0's)
+                if char not in ('0', '1'):
                     raise FileContentError(char)
 
-            k = len(spec_line)                                  # number of chars in file, equal to (n choose 2)
-            n = ((1 + m.sqrt((1 + 8 * k))) / 2)                 # solve for number of vertices, given k
+            k = len(spec_line)                              # number of chars in line, should be equal to (n choose 2)
+            n = ((1 + m.sqrt((1 + 8 * k))) / 2)             # solve for order of digraph
 
-            if (float(int(n)) == n):                            # if n is an int, then file is valid length
-                n = int(n); t_edge_list = []                    # convert n to int, setup edge list for tournament
-                cc = 0                                          # character counter
-                for u in range(1,n):                            # vertices {u,(u+1),...,(n-1)}
-                    for v in range((u+1),(n+1)):                # vertices {(u+1),(u+2),...,n}
+            if float(int(n)) == n:                          # if resulting n is an int, then file is valid length
+
+                '''
+                the bit string that is on the specified line number is the top-right triangle of an adjacency matrix
+                the reason only half of the adjacency matrix is needed- is due to the structure of tournaments
+
+                the matrix on an order 4 tournament may look like the following (vertices A, B, C, D):
+
+                    A  B  C  D
+                A   x  1  1  0
+                B   x  x  0  1
+                C   x  x  x  0
+                D   x  x  x  x
+
+                note for above:
+                    - each 'x' denotes it is not present in the file line, the matrix in this case would be: "110010"
+                    - '1' denotes a forward-adjacency, i.e. u is adjacent to v (u => v)
+                    - '0' denotes a backward-adjacency, i.e. u is adjacent from v (u <= v)
+                '''
+
+                n = int(n)
+                t_edge_list = []
+                cc = 0                                      # character counter
+                for u in range(1, n):                       # vertices {u,(u+1),...,(n-1)}
+                    for v in range((u+1), (n+1)):           # vertices {(u+1),(u+2),...,n}
                         char = spec_line[cc]
-                        cc += 1                                 # increment character counter
+                        cc += 1
 
-                        # assign adjacency based on char value
                         if char == '1':
-                            t_edge_list.append([u,v])
+                            t_edge_list.append([u, v])  # implies that u is adjacent to v
                         else:
-                            t_edge_list.append([v,u])
+                            t_edge_list.append([v, u])  # implies that u is adjacent from v
 
+                digraph_result.add_edges_from(t_edge_list)
 
-                # fill tournament with created edges
-                T.add_edges_from(t_edge_list)
+                if digraph_result.number_of_nodes() == 0:
+                    raise NullDiGraphError()
 
             else:
                 raise FileLengthError(k)
@@ -58,124 +83,171 @@ def mackay_t_parser(filename: str | os.PathLike, fileline: int) -> nx.DiGraph:
     except FileNotFoundError:
         print(f"File '{filename}' not found, or couldn't be opened.")
     except FileContentError as FCE:
-        print(f"File '{filename}' invalid content: found illegal char \''{FCE.value}'\', was expecting only '0' or '1'.")
+        print(f"File '{filename}' invalid content: found illegal char \''{FCE.wrong_content}'\', "
+              f"was expecting only '0' or '1'.")
     except FileLengthError as FLE:
-        print(f"File '{filename}' invalid number of chars: '{FLE.value}' will not result in a tournament.")
+        print(f"File '{filename}' invalid number of chars: '{FLE.wrong_length}' will not result in a tournament.")
     except SpecLineError as SLE:
         print(f"Specified line: '{SLE.spec_line_val}', caused empty string to be produced, possibly out of bounds.")
+    except FileTypeError as FTE:
+        print(f"File '{FTE.wrong_filetype}' provided is of wrong filetype, expected '.txt' file extension.")
+    except NullDiGraphError as NDE:
+        print(f"Specified file {filename}, and line {fileline}, produced a null digraph, please check parameters.")
 
-    if not (nx.is_tournament(T)) or (T.number_of_nodes() == 0):  # final check to make sure everything worked
-        print(f"ERROR: T is not a tournament, unexpected behaviour may occur.")
-
-    return T
+    return digraph_result
 
 
-'''
-Description of digraph6 format.
-------------------------------
+def mckay_d6_parser(filename: str | os.PathLike, fileline: int) -> nx.DiGraph:
+    """
+    will generate a digraph from a specific line from a given file of type .d6
+    :param filename: name of the file being passed in, required to be .d6 format
+    :param fileline: specific line we want to use in file; please use non-zero indexed value (i.e. first line is line 1)
+    :return: a digraph of type networkX.DiGraph
+    """
+    # side-note: if you're interested in the details of how .d6 files are encoded, and their formal definition,
+    # please refer to the following: https://users.cecs.anu.edu.au/~bdm/data/formats.txt
 
-Data type:  
-   simple directed graphs (allowing loops) of order 0 to 68719476735.
+    digraph_result = nx.DiGraph()
 
-Optional Header: 
-   >>digraph6<<     (without end of line!)
+    if not filename.endswith('.d6'):
+        raise FileTypeError(filename)
 
-File name extension:
-   .d6
+    try:
+        with open(filename, 'r') as file:
+            spec_line = linecache.getline(filename, fileline, module_globals=None)  # memory optimization (larger files)
+            spec_line = spec_line.strip()   # clean up input
 
-One graph:
-   Suppose G has n vertices. Write the adjacency matrix of G
-   as a bit vector x of length n^2, row by row.
+            if spec_line == "":
+                raise SpecLineError(fileline)
 
-   Then the graph is represented as '&' N(n) R(x).
-   The character '&' (decimal 38) appears as the first character.
+            if spec_line[0] != '&':  # .d6 file lines start with '&' as a delimiting char
+                raise StartCharError(spec_line[0])
 
-Example:
-   Suppose n=5 and G has edges 0->2, 0->4, 3->1 and 3->4.
+            for char in spec_line[1:]:  # all chars in a .d6 file should be printable ASCII chars in a specific range
+                if not (63 <= ord(char) <= 125):
+                    raise FileContentError(char)
 
-   x =  00101 
-        00000 
-        00000 
-        01001 
-        00000
-    
-   Then N(n) = 68 and
-   R(x) = R(00101 00000 00000 01001 00000) = 73  63  65  79  63.
-   So, the graph is  38 68 73  63  65  79  63.
-  
-  Explanation of R(x) 
-  
-  General principles:
+            # calculate the order of the digraph (e.g. if '@': ord('@') = 64; 64 - 63 = 1, order of digraph would be 1)
+            n = ord(spec_line[1]) - 63
 
-  All numbers in this description are in decimal unless obviously 
-  in binary.
+            digraph_result.add_nodes_from(range(0, n))  # digraphs may have isolated vertices, add the vertices manually
 
-  Apart from the header, there is one object per line. Apart from
-  the header, end-of-line characters, and the characters ":", ";"
-  and "&" which might start a line, all bytes have a value in the
-  range 63-126 (which are all printable ASCII characters). A file of
-  objects is a text file, so whatever end-of-line convention is
-  locally used is fine; however the C library input routines must
-  show the standard single-LF end of line to programs).
+            matrix_length = pow(n, 2)  # the adjacency matrix houses the adjacencies between vertices, as such, is: n^2
 
-Bit vectors:
+            resulting_bit_array = ''  # will house the concatenated bit arrays of each char as processed below
 
-  A bit vector x of length k can be represented as follows.  
-      Example:  1000101100011100
+            for char in spec_line[2:]:  # process the remaining chars of the string
+                '''
+                the char values have an integer value, which, on subtracting 63, and converting to binary
+                will result in part of the adjacency matrix
+                if the length of the binary part is shorter than 6, then it needs zeroes appended to the
+                left-hand side, this is to comply with the encoding/decoding scheme; the compliant 6-length binary part 
+                is then appended to the end of the total resulting bit array (by big-endian rules)
+                '''
+                bit_string = '{:b}'.format((ord(char) - 63))
 
-  (1) Pad on the right with 0 to make the length a multiple of 6.
-      Example:  100010110001110000
+                if len(bit_string) < 6:
+                    bit_string = ('0' * (6 - len(bit_string))) + bit_string
 
-  (2) Split into groups of 6 bits each.
-      Example:  100010 110001 110000
+                resulting_bit_array += bit_string
 
-  (3) Add 63 to each group, considering them as bigendian binary numbers.
-      Example:  97 112 111
+            '''
+                only part of the resulting bit array has the adjacencies we need, specifically-- 
+                the first 0 to matrix-length 1's and 0's, the rest are just garbage that are a side-product of the 
+                original encoding process
+                
+                the matrix on an order 4 digraph may look like the following (vertices A, B, C, D):
+                [the matrix length would then be equal to 16, as 4^2 = 16]
+                
+                    A  B  C  D
+                A   0  1  1  0
+                B   1  1  0  1
+                C   0  0  0  0
+                D   1  1  1  1
+                
+                [each '1' implies a forward adjacency from the left vertex to the top vertex, '0' means nothing]
+            '''
+            resulting_matrix = resulting_bit_array[0:matrix_length]
 
-  These values are then stored one per byte.  
-  So, the number of bytes is ceiling(k/6).
+            # we now need to build the adjacency list for the digraph from the resulting matrix...
 
-  Let R(x) denote this representation of x as a string of bytes.
-      
-Small nonnegative integers:
- 
-  Let n be an integer in the range 0-68719476735 (2^36-1).
+            d_edge_list = []
+            u = 0  # corresponds to left-hand side vertices of the matrix
+            v = 0  # corresponds to top side vertices of the matrix
 
-  If 0 <= n <= 62, define N(n) to be the single byte n+63.
-  If 63 <= n <= 258047, define N(n) to be the four bytes
-      126 R(x), where x is the bigendian 18-bit binary form of n.
-  If 258048 <= n <= 68719476735, define N(n) to be the eight bytes
-      126 126 R(x), where x is the bigendian 36-bit binary form of n.
+            for char in resulting_matrix:
 
-  Examples:  N(30) = 93
-             N(12345) = N(000011 000000 111001) = 126 66 63 120
-             N(460175067) = N(000000 011011 011011 011011 011011 011011)
-                          = 126 126 63 90 90 90 90 90
-'''
-# takes inspiration from above descriptor...
-def mackay_d6_parser():
-    pass
+                if char == '1':
+                    d_edge_list.append([u, v])  # implies u is adjacent to v
 
-'''
-Error Reporting, specific to this file
-'''
+                v += 1
+
+                if v == n:  # move to the next row of the matrix
+                    v = 0
+                    u += 1
+
+            digraph_result.add_edges_from(d_edge_list)
+
+            if digraph_result.number_of_nodes() == 0:  # null graph check (will probably never happen)
+                raise NullDiGraphError()
+
+    except FileNotFoundError:
+        print(f"File '{filename}' not found, or couldn't be opened.")
+    except FileContentError as FCE:
+        print(f"File '{filename}' invalid content: found illegal char \''{FCE.wrong_content}'\', "
+              f"char needs to be printable ASCII character.")
+    except SpecLineError as SLE:
+        print(f"Specified line: '{SLE.spec_line_val}', caused empty string to be produced, possibly out of bounds.")
+    except StartCharError as SCE:
+        print(f"Start of line has illegal char: '{SCE.wrong_char}', expected '&'.")
+    except FileTypeError as FTE:
+        print(f"File '{FTE.wrong_filetype}' provided is of wrong filetype, expected '.d6' extension.")
+    except NullDiGraphError as NDE:
+        print(f"Specified file {filename}, and line {fileline}, produced a null digraph, please check parameters.")
+
+    return digraph_result
+
+
 class FileLengthError(Exception):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, found_length):
+        self.wrong_length = found_length
 
     def __str__(self):
-        return(repr(self.value))
+        return repr(self.wrong_length)
+
 
 class FileContentError(Exception):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, found_content):
+        self.wrong_content = found_content
 
     def __str__(self):
-        return(repr(self.value))
+        return repr(self.wrong_content)
+
 
 class SpecLineError(Exception):
     def __init__(self, slv):
         self.spec_line_val = slv
 
     def __str__(self):
-        return(repr(self.value))
+        return repr(self.spec_line_val)
+
+
+class StartCharError(Exception):
+    def __init__(self, found_char):
+        self.wrong_char = found_char
+
+    def __str__(self):
+        return repr(self.wrong_char)
+
+
+class FileTypeError(Exception):
+    def __init__(self, found_filetype):
+        self.wrong_filetype = found_filetype
+
+    def __str__(self):
+        return repr(self.wrong_filetype)
+
+
+class NullDiGraphError(Exception):
+    def __init__(self):
+        pass

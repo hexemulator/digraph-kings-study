@@ -1,0 +1,178 @@
+# DKS Study Documentation
+The following is the instruction manual for this extension of the networkX library, whose purpose is to facilitate the 
+study of kings in direct products of directed graphs, this extension was written over the course of Summer '24, and as 
+such is given as-is, and is not advertised as feature complete. Much of the development behind this extension was driven
+by need, and exploration at the time of its writing.
+
+___
+
+## DKS_tools
+This is the module that houses all the functionality that this library extension has on offer, this module may be expanded
+upon, and optimized should the user choose to alter the code base. The module is made up of (as of writing) two files, 
+`Analysis.py`, and `Util.py`, the purposes of which are outlined below. It should be noted, for future users of the 
+library, that further refactoring is likely required to properly segment the code as per software engineering standards.
+
+---
+
+## Analysis.py
+Provides tools for the analysis of directed graphs, as of writing, it consists of two classes: `DKS_Digraph`, and `DKS_Product_Digraph`.
+
+### DKS_Digraph
+
+On being given the following parameters, will create an object of this class-type:
+
+- `networkX.digraph`: **required**
+- `name`: **required**
+
+The DKS_Digraph class differs from the networkX.digraph in that it **considers null digraphs (those with order zero) to be
+invalid**, it also has functionalities specific to the study such as identifying king vertices, as well as finding closed
+diwalks which contain these kings. These characteristics are pertinent to current literature on the topic.
+
+The following attributes are part of the DKS_Digraph object on instantiation:
+
+- `self.digraph`: the networkX.DiGraph object, this is not only for access for the class methods, but also to not shut off 
+access from the user
+- `self.name`: the string identifier for the DKS_Digraph object, useful when processing large swaths of data and identifying
+specific instances of interest
+- `self.is_valid_digraph`: checks the order of the digraph, if zero, it is set to false
+- `self.digraph_kings`: list of identified king vertices in the digraph, it should be noted that this includes **all kings**.
+Should the user want to work with _tournament-specific_ kings (kings that can reach all other vertices in distance two or less)
+then they may need to alter the code base to suit their needs.
+- `self.max_k_val`: given all kings, the max_k_val is the maximum distance needed to travel to reach all vertices
+- `self.min_k_val`: given all kings, the min_k_val is the minimum distance needed to travel to reach all vertices
+- `self.is_T`: identifies whether a given digraph is a tournament, utilizes a combination of networkX.is_tournament(),
+and checking the self.is_valid_digraph attribute of the object. (This is because networkX.is_tournament() considers null
+digraphs to be tournaments...)
+- `self.has_emperor`: will be set to true if the digraph is a tournament, and the tournament has only one king, constituting
+the emperor vertex.
+
+The following methods are part of the DKS_Digraph object, it should be noted that these are brief summaries, if further
+information is required, the user should pop into the codebase to look over the extensive commenting provided:
+- `set_k_vals()`: the function identifies king vertices and sets self.digraph_kings, finds k values of kings (the farthest distance 
+the king needs to travel to reach each vertex in the digraph) and assigns the k-val to the specific node in self.digraph, 
+and assigns self.min_k_val & self.max_k_val, with the largest and smallest values in the range of k values of king vertices.
+- `calc_dvs_cvs()`: first, Dvs is shorthand for _'closed diwalks that contain a vertex v'_, and Cvs is shorthand for 
+_'dicycles that contain a vertex v'_, both are very important properties for the purposes of the study, and further are 
+**extremely resource-intensive to calculate**. Depending on what the user seeks, this function identifies, given the 
+list of digraph kings, the lengths of the Dvs, and Cvs, where 'v' are each of the king vertices, these sets of lengths are assigned 
+directly to the node in self.digraph. It should be noted that digraphs of considerable size (that is, the total number 
+of arcs present in the digraph) will likely require more time to process.
+- `get_king_list()`: returns a list of the kings of the digraph; the function allows for 'force_tournament_rules', which 
+will return a list of _tournament-specific_ kings (kings that can reach all other vertices in distance two or less).
+- `get_digraph_characteristics()`: will return a list of digraph characteristics, the items of this list (should they exist),
+will be the following, in this order:
+  - name of digraph
+  - order of digraph
+  - list of vertices in the digraph, '[]' if order is zero
+  - digraph size, '[]' if no edges
+  - (if tournament) (n,k)-tournament label
+  - (") list of kings, or which one is emperor
+  - (alternatively to above two points) list of kings, '[]' if no kings
+  - (") min k val, '0' if no kings
+  - (") max k val, '0' if no kings
+  - list of digraph's strong components (acquired through list_digraph_strong_components())
+- `list_king_characteristics()`: will return list of lists of characteristics of kings of digraphs, each list corresponding
+to a king will be composed of the following (if characteristics exist), in this order:
+  - king vertex id (what it is in the digraph)
+  - king's k val
+  - (if Dv has been calc'ed through calc_dvs_cvs()) the set of king's Dv, and the GCD(Dv)
+  - (if Cv has been calc'ed through calc_dvs_cvs()) the set of king's Cv, and the GCD(Cv)
+- `list_digraph_strong_components()`: will return list of lists of the digraphs strong components, there is an option
+to ignore isolated vertices, which are inherently a strong component of a digraph.
+
+``Development Notes: Some of the above methods could be adjusted to return actual output that can be written to a file,
+I may not have time to actually implement this, so if someone else wanted to take a crack at it, please do.``
+
+---
+
+### DKS_Product_Digraph
+On being given the following parameters, will create an object of this class-type:
+- `digraph1`: required, is of type DKS_Digraph
+- `digraph2`: required, is of type DKS_Digraph
+
+The DKS_Product_Digraph houses most of the same functionality as DKS_Digraph, barring some functionalities specific to the 
+analysis of direct product digraphs. The following attributes are part of the DKS_Product_Digraph object on instantiation:
+- `self.D1`: houses the DKS_Digraph given from digraph1
+- `self.D2`: houses the DKS_Digraph given from digraph2
+- `self.D1xD2`: houses the tensor-product (i.e. direct-product) of self.D1, and self.D2, and stores it as a DKS_Digraph object;
+the name of the product digraph is a concatenation of the name attribute of self.D1, and self.D2. As self.D1xD2 is itself
+a DKS_Digraph object, all the functionality given in DKS_Digraph applies to this attribute.
+
+The following methods are part of the DKS_Product_Digraph, these methods are covered briefly, if more details are needed,
+you are encouraged to go into the source code and take a peek around:
+- `get_product_extrenum_k_val_kings()`: depending on what the user seeks, given all kings in the product, will provide 
+output that identifies kings that have k values either equal to the **minimum**, or **maximum** k value of the digraph.
+It will also identify the factor vertices of the product king, and provide information about the factor vertices.
+- `max_k_below_upper_bound()`: In the master's thesis of M.Norge regarding kings in the direct product of digraphs, she
+provided an upper bound for the k value of all kings in the product, this function provides output that checks if the 
+max_k_val of the product digraph is below, or at that theorized upper bound.
+- `compare_gcdv_gcdcv()`: INCOMPLETE, wanted to compare the gcd of the dv, and the gcd of the cv of kings, this was to 
+make the proofs of the theorems in our paper more clean, and tidy. Will update this soon as I move my experimental code
+into the function...
+___
+
+## Util.py
+Provides tools to parse files that have digraphs/tournaments encoded in them. Currently only has one functional parser 
+`mackay_t_parser()` which generates a tournament from an adjacency matrix encoded in 1s and 0s.
+
+### `mackay_txt_parser()`
+
+The function, on being given a filename (that corresponds to a .txt file that is a validly encoded tournament), as well
+as a line number (each line of the .txt file corresponds to an individual tournament), will produce the tournament from
+the 1s and 0s on that line number. Specifically, the 1s and 0s are the top-right triangle of an adjacency matrix of the
+vertices of a tournament, in other words, if the line contained the string: '101101' the corresponding adjacency matrix
+would be:
+
+```
+tournament adjacency matrix:
+ 
+            v1  v2  v3  v4 
+      v1    x   1   0   1
+      v2    x   x   1   0
+      v3    x   x   x   1
+      v4    x   x   x   x
+  ```
+In tournaments, each pair of distinct vertices has one adjacency between them, with '1' representing that the left-hand
+vertex is "adjacent to" the corresponding top vertex, and '0' representing that the left-hand vertex is "adjacent from"
+the top vertex. In the above example, **[v1 => v2]** (v1 is _adjacent to_ v2), and **[v1 <= v3]** (v1 is _adjacent from_ v3). 
+
+A brief summary of how the function works mechanically is as follows:
+- the function opens the provided filename using the 'read' mode, and in using the linecache module, will roll through
+the lines of the file until the specified line number is found. The reason linecache is used, is when dealing with larger
+files with millions of lines-- the linecache improves performance, and reduces the memory footprint.
+- on finding the line, the function will automatically figure out the order of the tournament (or on how many vertices
+the tournament is on), this is to not require the user to specify the order of the tournament beforehand, the mathematics
+of this process is not detailed here, and if it is of interest, please look in the source code.
+- the function then on finding '1' or '0' will generate a list of vertex adjacencies, following the logic laid out in the
+paragraph above the brief summary of the mechanical workings of the function.
+- the function then provides this adjacency list to the generator function in the networkX library for producing digraphs,
+the resulting digraph is then returned as a networkX.DiGraph object from the function.
+
+### `mackay_d6_parser()`
+This function parses and decodes .d6 text file lines to create digraphs, it does so by performing mathematical 
+operations on sequences of characters to figure out the order of the digraph, and the adjacency matrix of these 
+digraphs. These operations are somewhat complex, and the simplicity of the source code belies what is happening on 
+a conceptual level. If you're interested in the formal definition of the .d6 filetype, and how the encoding process 
+occurs, please refer to the following URL: https://users.cecs.anu.edu.au/~bdm/data/formats.txt
+
+The following is the general logic that .d6 text files comply with in the structure of a given line in the file:
+- a line begins with the delimiter '&', which denotes the beginning of a general digraph, this is for users who are 
+using programming languages that require such a delimiter
+- the second character in the line represents the order of the digraph, this is required in order to properly translate 
+the bit-string (yielded from the process outlined in third point) to an adjacency matrix, this is done by calculating the
+size of the adjacency matrix required, i.e. if we have n vertices (order n), the matrix needs to be n^2 long
+- the remaining characters of the line represent the encoded adjacencies in the digraph (structure of a matrix), the 
+process of decoding is the following:
+  - convert the character to its integer (decimal) representation, i.e. '@' is 64 in decimal
+  - subtract 63 from the above, and take the six-length binary representation of this result, appending zeroes to the 
+  left of the binary number if need be i.e. '@' => (64 - 63 = 1) => bin[1] => bin[000001]
+  - append the converted six-length binary representation of the char to the right-hand side of placeholder string that 
+  houses all such converted chars, e.g. "@?@" => '000001' + '000000' + '000001' => "000001000000000001"
+  - from the above final string, we extract (starting from the left-hand side) matrix-length characters, which are the 
+  0's and 1's which denote the adjacencies between each pair of vertices in the digraph, in the structure of a matrix,
+  from this matrix, we may extract the adjacency list
+- with the adjacency list from the matrix, we can construct the digraph, which will then be returned as a 
+networkX.DiGraph object from the function.
+
+``Development Notes: both of the above functions are tailor-made to parse the files provided at this URL: 
+https://users.cecs.anu.edu.au/~bdm/data/digraphs.html``
