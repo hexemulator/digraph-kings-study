@@ -112,10 +112,12 @@ into the function...
 ___
 
 ## Util.py
-Provides tools to parse files that have digraphs/tournaments encoded in them. Currently only has one functional parser 
-`mackay_t_parser()` which generates a tournament from an adjacency matrix encoded in 1s and 0s.
+Provides tools to parse files that have digraphs/tournaments encoded in them. Has two functions  one which parses 
+.txt files (which generate tournaments), and .d6 files (which generate digraphs). Both are specific to the
+encoding scheme of the files acquired for the study from the following URL: 
+https://users.cecs.anu.edu.au/~bdm/data/digraphs.html
 
-### `mackay_txt_parser()`
+### `mckay_txt_parser()`
 
 The function, on being given a filename (that corresponds to a .txt file that is a validly encoded tournament), as well
 as a line number (each line of the .txt file corresponds to an individual tournament), will produce the tournament from
@@ -140,15 +142,15 @@ A brief summary of how the function works mechanically is as follows:
 - the function opens the provided filename using the 'read' mode, and in using the linecache module, will roll through
 the lines of the file until the specified line number is found. The reason linecache is used, is when dealing with larger
 files with millions of lines-- the linecache improves performance, and reduces the memory footprint.
-- on finding the line, the function will automatically figure out the order of the tournament (or on how many vertices
-the tournament is on), this is to not require the user to specify the order of the tournament beforehand, the mathematics
-of this process is not detailed here, and if it is of interest, please look in the source code.
+- on finding the line, the function will mathematically determine the order of the tournament (how many vertices
+the tournament has), it is to not required for the user to specify the order of the tournament beforehand, the mathematics
+of this process are not detailed here, if it is of interest, please look in the source code.
 - the function then on finding '1' or '0' will generate a list of vertex adjacencies, following the logic laid out in the
 paragraph above the brief summary of the mechanical workings of the function.
 - the function then provides this adjacency list to the generator function in the networkX library for producing digraphs,
 the resulting digraph is then returned as a networkX.DiGraph object from the function.
 
-### `mackay_d6_parser()`
+### `mckay_d6_parser()`
 This function parses and decodes .d6 text file lines to create digraphs, it does so by performing mathematical 
 operations on sequences of characters to figure out the order of the digraph, and the adjacency matrix of these 
 digraphs. These operations are somewhat complex, and the simplicity of the source code belies what is happening on 
@@ -173,6 +175,3 @@ process of decoding is the following:
   from this matrix, we may extract the adjacency list
 - with the adjacency list from the matrix, we can construct the digraph, which will then be returned as a 
 networkX.DiGraph object from the function.
-
-``Development Notes: both of the above functions are tailor-made to parse the files provided at this URL: 
-https://users.cecs.anu.edu.au/~bdm/data/digraphs.html``
