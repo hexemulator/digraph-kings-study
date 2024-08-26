@@ -1,19 +1,17 @@
 import networkx as nx
 import math
 import functools
+import threading
+
 from networkx_viewer import Viewer
 import DKS_tools.Util as util
 from DKS_tools.Analysis import DKS_Digraph, DKS_Product_Digraph
+from Experiment_Functions import min_max_k_val_kings_experiment
 
-D1 = DKS_Digraph(util.mckay_d6_parser(f"digraph_datasets/d6_la_files/digl4.d6", 2080), f"test")
-D1.calc_dvs_cvs()
+if __name__ == '__main__':
+    T1 = DKS_Digraph(util.mckay_txt_parser(f"digraph_datasets/t_files/tourn5.txt", 3),f"T1")
+    T2 = DKS_Digraph(util.mckay_txt_parser(f"digraph_datasets/t_files/tourn5.txt", 2),f"T2")
 
-d_char = D1.get_digraph_characteristics()
+    T1xT2 = DKS_Product_Digraph(T1, T2)
 
-for item in d_char:
-    print(item)
 
-d_king_char = D1.get_king_characteristics()
-
-for char in d_king_char:
-    print(char)

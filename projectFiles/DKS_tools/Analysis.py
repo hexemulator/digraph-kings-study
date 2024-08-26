@@ -27,7 +27,7 @@ class DKS_Digraph:
         self.set_k_vals()  # populates the attributes 'digraph_kings', 'max_k_val', and 'min_k_val'
 
         self.is_T: bool = nx.is_tournament(self.digraph) and self.is_valid_digraph  # whether digraph is tournament
-        self.has_emperor = False  # if the tournament has an emperor
+        self.has_emperor = len(self.digraph_kings) == 1  # if the tournament has an emperor
 
     def set_k_vals(self):
         """
