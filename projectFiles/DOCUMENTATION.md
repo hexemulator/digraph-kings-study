@@ -1,4 +1,4 @@
-# DKS Study Documentation
+# DKS Extension Documentation
 The following is the instruction manual for this extension of the networkX library, whose purpose is to facilitate the 
 study of kings in direct products of directed graphs, this extension was written over the course of Summer '24, and as 
 such is given as-is, and is not advertised as feature complete. Much of the development behind this extension was driven
@@ -25,8 +25,8 @@ On being given the following parameters, will create an object of this class-typ
 - `name`: **required**
 
 The DKS_Digraph class differs from the networkX.digraph in that it **considers null digraphs (those with order zero) to be
-invalid**, it also has functionalities specific to the study such as identifying king vertices, as well as finding closed
-diwalks which contain these kings. These characteristics are pertinent to current literature on the topic.
+invalid**, this differs from the purposes of the study. The class also has functionalities specific to the study such as identifying king vertices, as well as finding closed
+diwalks which contain these kings. These characteristics are pertinent to current literature/articles on the topic.
 
 The following attributes are part of the DKS_Digraph object on instantiation:
 
