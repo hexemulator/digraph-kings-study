@@ -21,7 +21,7 @@ class DKS_Digraph:
         self.name: str = name
         self.is_valid_digraph: bool = self.digraph.order() != 0   # order 0 digraphs are considered valid in networkX
 
-        self.digraph_kings: list = []
+        self.digraph_kings: list = []  # list of 'kings' (if they exist) in the digraph
         self.max_k_val = 0  # maximum distance a king needs to travel in a digraph to reach all other nodes
         self.min_k_val = 0  # minimum distance a king needs to travel in a digraph to reach all other nodes
         self.set_k_vals()  # populates the attributes 'digraph_kings', 'max_k_val', and 'min_k_val'
@@ -47,13 +47,13 @@ class DKS_Digraph:
                 k_val_list.append(k_val)
                 king_list.append(vertex)
             except:
-                pass  # silent errors
+                pass  # silent errors, don't need to know about vertices that aren't kings
 
-        if len(k_val_list) != 0:
+        if len(k_val_list) != 0:  # as long as there's at LEAST one king, we can find the min/max k-val
             self.max_k_val = max(k_val_list)
             self.min_k_val = min(k_val_list)
 
-        self.digraph_kings = sorted(king_list)
+        self.digraph_kings = sorted(king_list)  # sort it so that they are in nice order
 
     def calc_dvs_cvs(self, find_dv: bool = True, find_cv: bool = True):
         """
@@ -64,6 +64,11 @@ class DKS_Digraph:
         prior choices, will assign values directly to self.digraph.nodes[king]['GCD(Dv)' and/or 'GCD(Cv)']
         :param find_dv: if user wants Dv, and GCD(Dv), default is True
         :param find_cv: if user wants Cv, and GCD(Cv), default is True
+        """
+
+        """
+        calculating the Dv, and Cv are computationally intense, so this function allows for the user to specify which
+        values they actually want, to reduce the amount of computation to only what is necessary!
         """
 
         # if neither cv nor dv is sought, the function does nothing
@@ -90,73 +95,71 @@ class DKS_Digraph:
                     elif len(self.digraph.nodes[king]['Cv']) == 1:
                         self.digraph.nodes[king]['GCD(Cv)'] = list(self.digraph.nodes[king]['Cv'])[0]
 
-            # if dv is not sought, then we leave the function
-            if not find_dv:
-                return
+            # if dv is sought as well, find them next... otherwise-- the function will exit
+            if find_dv:
+                # initialize kings with Dv attributes in the digraph
+                for king in self.digraph_kings:
+                    self.digraph.nodes[king]['Dv'] = set()
+                    self.digraph.nodes[king]['GCD(Dv)'] = 0
 
-            # initialize kings with Dv attributes in the digraph
-            for king in self.digraph_kings:
-                self.digraph.nodes[king]['Dv'] = set()
-                self.digraph.nodes[king]['GCD(Dv)'] = 0
+                # below is a list of kings remaining to be checked for their Dv & GCD(Dv), we create a copy of the original
+                # list because it allows us to remove multiple kings at a time, w/o affecting original list
+                kings_to_check = self.digraph_kings.copy()
 
-            # below is a list of kings remaining to be checked for their Dv & GCD(Dv), we create a copy of the original
-            # list because it allows us to remove multiple kings at a time, w/o affecting original list
-            kings_to_check = self.digraph_kings.copy()
+                '''
+                check all walk lengths up to the size of the digraph, the reason we choose the size of the digraph as an
+                upper-bound is that a closed diwalk of maximal length that is unique (no repetitions of cycles contained
+                within the closed diwalk) is the size of the digraph itself. In other words-- if we create a closed diwalk
+                of maximum size, it will be composed of the concatenation every edge present in the digraph, every edge 
+                summed together is equal to the size of the digraph.
+                '''
+                for proposed_walk_length in range(1, self.digraph.size() + 1):
 
-            '''
-            check all walk lengths up to the size of the digraph, the reason we choose the size of the digraph as an
-            upper-bound is that a closed diwalk of maximal length that is unique (no repetitions of cycles contained
-            within the closed diwalk) is the size of the digraph itself. In other words-- if we create a closed diwalk
-            of maximum size, it will be composed of the concatenation every edge present in the digraph, every edge 
-            summed together is equal to the size of the digraph.
-            '''
-            for proposed_walk_length in range(1, self.digraph.size() + 1):
+                    # if all kings have been found to have GCD(Dv) = 1, loop ends prematurely (saves time, and processing)
+                    if len(kings_to_check) == 0:
+                        break
 
-                # if all kings have been found to have GCD(Dv) = 1, loop ends prematurely (saves time, and processing)
-                if len(kings_to_check) == 0:
-                    break
+                    # collect all walks in the digraph, including closed walks of the proposed length
+                    all_walks_of_len = nx.number_of_walks(self.digraph, proposed_walk_length)
 
-                # collect all walks in the digraph, including closed walks of the proposed length
-                all_walks_of_len = nx.number_of_walks(self.digraph, proposed_walk_length)
+                    # for each king remaining, find count of closed diwalks containing king of that length, if they exist
+                    for king in kings_to_check:
+                        num_king_closed_diwalks = all_walks_of_len[king][king]  # count of walks from king to itself
 
-                # for each king remaining, find count of closed diwalks containing king of that length, if they exist
-                for king in kings_to_check:
-                    num_king_closed_diwalks = all_walks_of_len[king][king]  # count of walks from king to itself
-
-                    if num_king_closed_diwalks > 0:  # if any such closed diwalks are found...
-                        if len(self.digraph.nodes[king]['Dv']) == 0:  # if king doesn't have element in Dv yet--
-                            self.digraph.nodes[king]['Dv'].add(proposed_walk_length)
-                        else:  # otherwise, king has at least one length in its set
-                            # need to check if proposed length is multiple of an existing length, (possible repetition)
-                            plength_is_mult_of_elength = False
-                            for existing_length in self.digraph.nodes[king]['Dv']:
-                                if proposed_walk_length % existing_length == 0:
-                                    plength_is_mult_of_elength = True
-
-                            if not plength_is_mult_of_elength:
+                        if num_king_closed_diwalks > 0:  # if any such closed diwalks are found...
+                            if len(self.digraph.nodes[king]['Dv']) == 0:  # if king doesn't have element in Dv yet--
                                 self.digraph.nodes[king]['Dv'].add(proposed_walk_length)
+                            else:  # otherwise, king has at least one length in its set
+                                # need to check if proposed length is multiple of an existing length, (possible repetition)
+                                plength_is_mult_of_elength = False
+                                for existing_length in self.digraph.nodes[king]['Dv']:
+                                    if proposed_walk_length % existing_length == 0:
+                                        plength_is_mult_of_elength = True
 
-                kings_to_be_removed = list()  # reset list each time, and populate based on kings that have GCD(Dv) = 1
+                                if not plength_is_mult_of_elength:
+                                    self.digraph.nodes[king]['Dv'].add(proposed_walk_length)
 
-                for king in kings_to_check:
-                    if len(self.digraph.nodes[king]['Dv']) >= 2:  # need at least two values in Dv to check for GCD
-                        current_gcd_of_dv = ft.reduce(m.gcd, self.digraph.nodes[king]['Dv'])
+                    kings_to_be_removed = list()  # reset list each time, and populate based on kings that have GCD(Dv) = 1
 
-                        if current_gcd_of_dv == 1:
-                            kings_to_be_removed.append(king)
-                            self.digraph.nodes[king]['GCD(Dv)'] = current_gcd_of_dv
+                    for king in kings_to_check:
+                        if len(self.digraph.nodes[king]['Dv']) >= 2:  # need at least two values in Dv to check for GCD
+                            current_gcd_of_dv = ft.reduce(m.gcd, self.digraph.nodes[king]['Dv'])
 
-                # need to do it this way, otherwise index on removals change, making multiple removals impossible
-                if len(kings_to_be_removed) != 0:
-                    for king in kings_to_be_removed:
-                        kings_to_check.remove(king)
+                            if current_gcd_of_dv == 1:
+                                kings_to_be_removed.append(king)
+                                self.digraph.nodes[king]['GCD(Dv)'] = current_gcd_of_dv
 
-            # deal with cases of Dv not dealt with above, either GCD(Dv) not calc'ed yet, or only has a single Dv value
-            for king in self.digraph_kings:
-                if len(self.digraph.nodes[king]['Dv']) >= 2 and self.digraph.nodes[king]['GCD(Dv)'] == 0:
-                    self.digraph.nodes[king]['GCD(Dv)'] = ft.reduce(m.gcd, self.digraph.nodes[king]['Dv'])
-                elif len(self.digraph.nodes[king]['Dv']) == 1 and self.digraph.nodes[king]['GCD(Dv)'] == 0:
-                    self.digraph.nodes[king]['GCD(Dv)'] = list(self.digraph.nodes[king]['Dv'])[0]
+                    # need to do it this way, otherwise index on removals change, making multiple removals impossible
+                    if len(kings_to_be_removed) != 0:
+                        for king in kings_to_be_removed:
+                            kings_to_check.remove(king)
+
+                # deal with cases of Dv not dealt with above, either GCD(Dv) not calc'ed yet, or only has a single Dv value
+                for king in self.digraph_kings:
+                    if len(self.digraph.nodes[king]['Dv']) >= 2 and self.digraph.nodes[king]['GCD(Dv)'] == 0:
+                        self.digraph.nodes[king]['GCD(Dv)'] = ft.reduce(m.gcd, self.digraph.nodes[king]['Dv'])
+                    elif len(self.digraph.nodes[king]['Dv']) == 1 and self.digraph.nodes[king]['GCD(Dv)'] == 0:
+                        self.digraph.nodes[king]['GCD(Dv)'] = list(self.digraph.nodes[king]['Dv'])[0]
 
     def get_king_list(self, force_tournament_rules: bool = False) -> list:
         """
@@ -273,6 +276,8 @@ class DKS_Product_Digraph:
         self.D1: DKS_Digraph = digraph1                                    # factor digraph 1
         self.D2: DKS_Digraph = digraph2                                    # factor digraph 2
 
+        # ^ may at some point have it that if the digraphs are given as a nx.DiGraph object that it will create them to fit
+
         self.D1xD2: DKS_Digraph = DKS_Digraph(nx.tensor_product(self.D1.digraph, self.D2.digraph), f"{self.D1.name}x{self.D2.name}")
 
     def get_product_extremum_k_val_kings(self, extremum_is_max: bool = True):
@@ -280,6 +285,7 @@ class DKS_Product_Digraph:
         In the product, will find the k_val kings, either min, or max, based on boolean given in arg.
         :param extremum_is_max: if True, extremum is maximal, otherwise minimum.
         """
+
         print(f"~~~~~~{"MAX" if extremum_is_max else "MIN"} EXTRENUM K_VAL KINGS IN {self.D1xD2.name}~~~~~~")
         if len(self.D1xD2.digraph_kings) == 0:
             print(f"get_product_extrenum_k_val_kings(): {self.D1xD2.name} has no kings, unable to retrieve extrenum k_val kings.")
@@ -307,6 +313,12 @@ class DKS_Product_Digraph:
         print(f"~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     def max_k_below_upper_bound(self) -> bool:
+        """
+        Function checks whether or not the max_k_val is below or equal to the theoretical upper bound as given by
+        M. Norge in her paper talking about the direct product of two digraphs... essentially this is a test to see
+        if a given product is 'interesting enough' to run tests on. Later on, I would imagine this may not be necessary
+        """
+
         print(f"~~~~~~CHECKING IF {self.D1xD2.name} IS BELOW THEORIZED UPPER-BOUND~~~~~~")
         upper_bound_val = (self.D1.digraph.order() * self.D2.digraph.order()) - 1
         max_k_val = self.D1xD2.max_k_val
@@ -322,13 +334,3 @@ class DKS_Product_Digraph:
         print(f"~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         return False
-
-    def compare_gcddv_gcdcv(self):
-        # for each king in the product, it will correspond to a king in both factor graphs (by Th.1)
-        # we want to check for equality between
-        #   gcd(g1(v),g1(v')), and gcd(g2(v),g2(v'))
-        # where:
-        #   - g1(v) is...
-        #   - g2(v) is...
-
-        pass

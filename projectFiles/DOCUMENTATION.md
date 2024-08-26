@@ -8,8 +8,8 @@ ___
 
 ## DKS_tools
 This is the module that houses all the functionality that this library extension has on offer, this module may be expanded
-upon, and optimized should the user choose to alter the code base. The module is made up of (as of writing) two files, 
-`Analysis.py`, and `Util.py`, the purposes of which are outlined below. It should be noted, for future users of the 
+upon, and optimized should the user choose to alter the code base. The module is made up of three files, 
+`Analysis.py`, `Util.py`, and `Experiment_Functions.py` the purposes of which are outlined below. It should be noted, for future users of the 
 library, that further refactoring is likely required to properly segment the code as per software engineering standards.
 
 ---
@@ -175,3 +175,73 @@ process of decoding is the following:
   from this matrix, we may extract the adjacency list
 - with the adjacency list from the matrix, we can construct the digraph, which will then be returned as a 
 networkX.DiGraph object from the function.
+
+## Experiment Functions
+
+### Purpose
+This part of the module houses experiment functions that should not necessarily be part of the classes provided in `Analysis.py`.
+The functions herein contained are moreso external to the functionalities tied specifically to digraphs, tournaments, etc.
+Having the functions stored here also serves as a way to have a clean playground in which that the messy process of experimental
+setup does not touch how the classes/functions are set up.
+
+Right now, there's two functions inside this file, one that serves as the master function, and helper functions that operate
+on the principle of multi-threading. The parameters related to the number of cores within the computer to be used are tied
+to my (HexEmulator's) computer, so in order to BEST utilize the functions in this file as per your machine, it is advised 
+that you customize how many cores are used, and adjust the for loop in the helper functions. (I also advise going through
+the process of using the 'time' library and actually seeing how long each configuration of core count takes to get the 
+best results!)
+
+If you look through the source code, I have left commenting
+and `TODO` instructions to the values needed to be changed for core count (ctrl+F should help you find them).
+
+I will detail the helper, and master function now:
+
+### min_max_k_val_kings_experiment() (MASTER FUNCTION)
+During our experimentation, we were interested in the ranges of 'k-vals' as they related to the kings of the product
+of tournaments. However, this would likely work with regular digraphs as well... the experiment was designed to take a
+specified 'i tournament' (which is fixed throughout the experiment), and cross them with every single other 'j tournament'
+(of every other order, and variety, increasing from the i tournament). 
+
+Side note: Initially we did this linearly, with a single loop
+and it was painfully slow (at least 12 hours in some cases), so we decided to utilize multi-threading to expedite the process;
+this resulted in a initial reduction down to 8 hours, and then with further core-count adjustments led to 4 hours.
+
+To launch the experiment you need:
+- the order of the tournament you're seeking to cross with all others
+- the specific line from the tournament file that you're looking to cross with all others
+
+These will come together to build the 'i tournament' as previously mentioned, and then the master function then creates 
+the results file where all the final data from the experiment will be written. The experiment is now ready to begin--
+
+The process by which the experiment takes place can be summed up, like so:
+- a number of processes (the count specified by the user) will each be tasked with utilizing a helper function (detailed
+later) in order to produce 1/P# of the final result file, where P# is the number of processes, these are written as .part files;
+these .part files are ***per order*** of the digraphs that they're working on... i.e. all processes will work on order 3 together
+until that order is fully worked through, with processes that finish in that specific order first-- will not start on the next order
+until all other processes have caught up
+- when all processes have finished their portion of the total results file-- the information from the individual .part files
+is stitched together in the final results file, when all the parts have been written over-- the next order .part files can
+be processed
+- This process continues until all order digraphs have been processed, and everything is written to the master file
+
+(I will admit, I could probably have the .part files for the next order be processed at the same time as the .part files are written
+to the master file... but eh, I didn't really have time to think about that, I think the next person to work on that could work on it,
+if they genuinely need to)
+
+
+### mmkvk_gen_result_part() (HELPER FUNCTION)
+The process by which the helper function works is the following:
+- the function is given an 'i tournament', this is per the arguments given to the master function
+- also from its arguments, it will have a file name that is a dedicated location for all pertinent results to be written to
+- the function also has a specified order, and line number to start on-- these are heavily dependent on the cores/threads to be used
+- the helper will construct the j tourn from the order, and line number and will process the combination of the i tourn, and the j tourn
+- it will then write the results to it's specified .part file
+- upon finishing that calculation, and writing, it will then hop a specific number of lines down the file, it will repeat the
+above processes until it reaches the end of the file, it will finish execution at this point, and release the file for reading
+by the master function
+
+Everything above will be executed by P# processes, and the 'hop' as given in the final point is essentially spacing all the
+helper functions working in parallel in the correct manner so that work is not repeated between processes...
+
+Could likely have a macro at the top of the file to specify the number of cores to be used, but I did not get around to doing that
+elegantly.
