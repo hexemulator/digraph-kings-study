@@ -20,7 +20,7 @@ code; no further installation steps (presumably) are required beyond having the 
  
 
 ## authors/credits
-- `briefcaseofbees`, student at Vancouver Island University, researcher
+- `oh-em-bee`, graduate of Vancouver Island University, researcher
 - `Jacobus Swarts`, instructor at Vancouver Island University, research supervisor
 
 Thank you to Vancouver Island University for funding this research project, and to the Math Department, and Cobus for 
