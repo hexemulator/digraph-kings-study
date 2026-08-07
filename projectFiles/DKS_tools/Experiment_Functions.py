@@ -80,7 +80,7 @@ def mmkvk_gen_result_part(i_tournament: Analysis.DKS_Digraph, spec_j_order, star
             formatted_output = ""  # clear formatted output
 
 
-def min_max_k_val_kings_experiment(specified_order: int, specified_line: int):
+def min_max_k_val_kings_experiment(specified_order: int, specified_line: int, max_j_tournament_order: int):
     """
         creates a results text file that lists all possible combinations of a specified tournament, with all others, up to
         order 10, and also gives the lowest, and highest k values of kings from the combinations of the tournaments (as well
@@ -142,8 +142,8 @@ def min_max_k_val_kings_experiment(specified_order: int, specified_line: int):
             w_f.write(f"\t--------------------------------------\n")
             spec_j_tournament += 1
 
-            # TERMINATE EXPERIMENT IF AT ORDER '11' (doesn't exist)
-            if spec_j_tournament > 10:
+            # terminate experiment if the user-specified max order is reached
+            if spec_j_tournament > max_j_tournament_order:
 
                 # FILE PART CLEANUP
                 for p_cnt in range(0, thread_count):
